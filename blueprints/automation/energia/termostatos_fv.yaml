@@ -1,5 +1,5 @@
 blueprint:
-  name: Control PRO termostatos FV (completo con apagado nocturno)
+  name: Control PRO termostatos FV (completo sin errores)
   description: >
     Control avanzado:
     - Si batería >= 100% y solar > 2kW durante 5 min Y es de día → 25°C
@@ -51,8 +51,8 @@ trigger:
   # 🔥 Activación (condiciones buenas + de día durante 5 min)
   - platform: template
     value_template: >
-      {{ states(!input battery_entity) | float >= 99 and
-         states(!input solar_entity) | float > (!input solar_threshold | float) and
+      {{ states[( !input battery_entity )].state | float >= 99 and
+         states[( !input solar_entity )].state | float > ( !input solar_threshold | float ) and
          is_state('sun.sun', 'above_horizon') }}
     for: "00:05:00"
     id: activar
@@ -60,8 +60,8 @@ trigger:
   # ❄️ Desactivación (condiciones malas durante 5 min)
   - platform: template
     value_template: >
-      {{ states(!input battery_entity) | float < 50 and
-         states(!input solar_entity) | float < (!input solar_threshold | float) }}
+      {{ states[( !input battery_entity )].state | float < 50 and
+         states[( !input solar_entity )].state | float < ( !input solar_threshold | float ) }}
     for: "00:05:00"
     id: apagar
 
@@ -75,6 +75,7 @@ condition: []
 
 action:
   - choose:
+      # 🔥 Encender
       - conditions:
           - condition: trigger
             id: activar
@@ -86,6 +87,7 @@ action:
             data:
               temperature: !input temperature
 
+      # ❄️ Apagar por condiciones
       - conditions:
           - condition: trigger
             id: apagar
@@ -93,6 +95,7 @@ action:
           - service: climate.turn_off
             target: !input thermostats
 
+      # 🌇 Apagar por noche
       - conditions:
           - condition: trigger
             id: noche
