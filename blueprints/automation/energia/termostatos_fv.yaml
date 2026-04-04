@@ -51,8 +51,8 @@ trigger:
   # 🔥 Activación (condiciones buenas + de día durante 5 min)
   - platform: template
     value_template: >
-      {{ states[( !input battery_entity )].state | float >= 99 and
-         states[( !input solar_entity )].state | float > ( !input solar_threshold | float ) and
+      {{ states[( input battery_entity )].state | float >= 99 and
+         states[( input solar_entity )].state | float > ( input solar_threshold | float ) and
          is_state('sun.sun', 'above_horizon') }}
     for: "00:05:00"
     id: activar
@@ -60,8 +60,8 @@ trigger:
   # ❄️ Desactivación (condiciones malas durante 5 min)
   - platform: template
     value_template: >
-      {{ states[( !input battery_entity )].state | float < 50 and
-         states[( !input solar_entity )].state | float < ( !input solar_threshold | float ) }}
+      {{ states[( input battery_entity )].state | float < 50 and
+         states[( input solar_entity )].state | float < ( input solar_threshold | float ) }}
     for: "00:05:00"
     id: apagar
 
