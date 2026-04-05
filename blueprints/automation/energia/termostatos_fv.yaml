@@ -1,34 +1,82 @@
 blueprint:
-  name: Control PRO termostatos FV (completo sin errores)
-  description: >
-    Control avanzado:
-    - Si batería >= 100% y solar > 2kW durante 5 min Y es de día → 25°C
-    - Si batería < 50% y solar < 2kW durante 5 min → OFF
-    - Al ponerse el sol → OFF siempre
+  name: Calefacción con excedentes FV
+  description: Enciende o apaga termostatos según batería, producción solar y ciclo solar.
   domain: automation
 
   input:
-    battery_entity:
-      name: Sensor de batería (%)
+    battery_sensor:
+      name: Sensor de batería
+      description: Porcentaje de carga de la batería.
       selector:
         entity:
           domain: sensor
 
-    solar_entity:
-      name: Sensor de producción solar (W)
+    pv_power_sensor:
+      name: Sensor de producción FV
+      description: Producción fotovoltaica instantánea en vatios.
       selector:
         entity:
           domain: sensor
 
     thermostats:
       name: Termostatos
+      description: Selecciona los termostatos a controlar.
       selector:
         target:
           entity:
-            domain: climate
+            - domain: climate
 
-    temperature:
+    battery_full_threshold:
+      name: Batería llena (%)
+      description: Se considerará batería llena a partir de este valor.
+      default: 99
+      selector:
+        number:
+          min: 0
+          max: 100
+          step: 1
+          unit_of_measurement: "%"
+          mode: slider
+
+    battery_low_threshold:
+      name: Batería baja (%)
+      description: Se apagará cuando la batería baje de este valor.
+      default: 50
+      selector:
+        number:
+          min: 0
+          max: 100
+          step: 1
+          unit_of_measurement: "%"
+          mode: slider
+
+    pv_high_threshold:
+      name: Producción FV alta (W)
+      description: Se encenderá cuando la producción supere este valor.
+      default: 2000
+      selector:
+        number:
+          min: 0
+          max: 20000
+          step: 100
+          unit_of_measurement: W
+          mode: box
+
+    pv_low_threshold:
+      name: Producción FV baja (W)
+      description: Se apagará cuando la producción baje de este valor.
+      default: 2000
+      selector:
+        number:
+          min: 0
+          max: 20000
+          step: 100
+          unit_of_measurement: W
+          mode: box
+
+    target_temperature:
       name: Temperatura objetivo
+      description: Temperatura a fijar al encender la calefacción.
       default: 25
       selector:
         number:
@@ -36,71 +84,106 @@ blueprint:
           max: 30
           step: 0.5
           unit_of_measurement: "°C"
+          mode: slider
 
-    solar_threshold:
-      name: Umbral producción solar (W)
-      default: 2000
+    stabilization_minutes:
+      name: Minutos de estabilidad
+      description: Tiempo durante el que deben cumplirse simultáneamente las condiciones.
+      default: 5
       selector:
         number:
-          min: 0
-          max: 10000
-          step: 100
-          unit_of_measurement: "W"
+          min: 1
+          max: 60
+          step: 1
+          unit_of_measurement: min
+          mode: slider
 
-trigger:
-  # 🔥 Activación (condiciones buenas + de día durante 5 min)
-  - platform: template
-    value_template: >
-      {{ states[( input battery_entity )].state | float >= 99 and
-         states[( input solar_entity )].state | float > ( input solar_threshold | float ) and
-         is_state('sun.sun', 'above_horizon') }}
-    for: "00:05:00"
-    id: activar
+    sunrise_offset:
+      name: Offset desde amanecer
+      description: Retraso o adelanto respecto al amanecer para permitir el encendido. Ejemplo: 00:30:00 o -00:15:00.
+      default: "00:30:00"
+      selector:
+        text: {}
 
-  # ❄️ Desactivación (condiciones malas durante 5 min)
-  - platform: template
-    value_template: >
-      {{ states[( input battery_entity )].state | float < 50 and
-         states[( input solar_entity )].state | float < ( input solar_threshold | float ) }}
-    for: "00:05:00"
-    id: apagar
+    sunset_offset:
+      name: Offset desde atardecer
+      description: Adelanto o retraso respecto al atardecer para cortar el encendido y apagar. Ejemplo: -00:30:00 o 00:15:00.
+      default: "-00:30:00"
+      selector:
+        text: {}
 
-  # 🌇 Apagado al anochecer
-  - platform: state
-    entity_id: sun.sun
-    to: "below_horizon"
-    id: noche
-
-condition: []
-
-action:
-  - choose:
-      # 🔥 Encender
-      - conditions:
-          - condition: trigger
-            id: activar
-        sequence:
-          - service: climate.turn_on
-            target: !input thermostats
-          - service: climate.set_temperature
-            target: !input thermostats
-            data:
-              temperature: !input temperature
-
-      # ❄️ Apagar por condiciones
-      - conditions:
-          - condition: trigger
-            id: apagar
-        sequence:
-          - service: climate.turn_off
-            target: !input thermostats
-
-      # 🌇 Apagar por noche
-      - conditions:
-          - condition: trigger
-            id: noche
-        sequence:
-          - service: climate.turn_off
-            target: !input thermostats
+trigger_variables:
+  battery_entity: !input battery_sensor
+  pv_entity: !input pv_power_sensor
+  battery_full: !input battery_full_threshold
+  battery_low: !input battery_low_threshold
+  pv_high: !input pv_high_threshold
+  pv_low: !input pv_low_threshold
 
 mode: single
+
+triggers:
+  - trigger: template
+    id: heat_on
+    value_template: >
+      {{ states(battery_entity) | float(0) >= battery_full
+         and states(pv_entity) | float(0) > pv_high }}
+    for:
+      minutes: !input stabilization_minutes
+
+  - trigger: template
+    id: heat_off_low_energy
+    value_template: >
+      {{ states(battery_entity) | float(0) < battery_low
+         and states(pv_entity) | float(0) < pv_low }}
+    for:
+      minutes: !input stabilization_minutes
+
+  - trigger: sun
+    id: solar_night_start
+    event: sunset
+    offset: !input sunset_offset
+
+conditions: []
+
+actions:
+  - choose:
+      - conditions:
+          - condition: trigger
+            id: heat_on
+          - condition: sun
+            after: sunrise
+            after_offset: !input sunrise_offset
+          - condition: sun
+            before: sunset
+            before_offset: !input sunset_offset
+        sequence:
+          - action: climate.turn_on
+            target: !input thermostats
+
+          - delay:
+              seconds: 2
+
+          - action: climate.set_hvac_mode
+            target: !input thermostats
+            data:
+              hvac_mode: heat
+
+          - delay:
+              seconds: 2
+
+          - action: climate.set_temperature
+            target: !input thermostats
+            data:
+              temperature: !input target_temperature
+
+      - conditions:
+          - condition: or
+            conditions:
+              - condition: trigger
+                id: heat_off_low_energy
+              - condition: trigger
+                id: solar_night_start
+        sequence:
+          - action: climate.turn_off
+            target: !input thermostats
