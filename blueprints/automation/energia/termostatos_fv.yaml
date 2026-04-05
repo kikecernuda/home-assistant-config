@@ -1,26 +1,26 @@
 blueprint:
   name: Calefacción con excedentes FV
-  description: Enciende o apaga termostatos según batería, producción solar y ciclo solar.
+  description: "Enciende o apaga termostatos según batería, producción solar y ciclo solar."
   domain: automation
 
   input:
     battery_sensor:
       name: Sensor de batería
-      description: Porcentaje de carga de la batería.
+      description: "Porcentaje de carga de la batería."
       selector:
         entity:
           domain: sensor
 
     pv_power_sensor:
       name: Sensor de producción FV
-      description: Producción fotovoltaica instantánea en vatios.
+      description: "Producción fotovoltaica instantánea en vatios."
       selector:
         entity:
           domain: sensor
 
     thermostats:
       name: Termostatos
-      description: Selecciona los termostatos a controlar.
+      description: "Selecciona los termostatos a controlar."
       selector:
         target:
           entity:
@@ -28,7 +28,7 @@ blueprint:
 
     battery_full_threshold:
       name: Batería llena (%)
-      description: Se considerará batería llena a partir de este valor.
+      description: "Se considerará batería llena a partir de este valor."
       default: 99
       selector:
         number:
@@ -40,7 +40,7 @@ blueprint:
 
     battery_low_threshold:
       name: Batería baja (%)
-      description: Se apagará cuando la batería baje de este valor.
+      description: "Se apagará cuando la batería baje de este valor."
       default: 50
       selector:
         number:
@@ -52,7 +52,7 @@ blueprint:
 
     pv_high_threshold:
       name: Producción FV alta (W)
-      description: Se encenderá cuando la producción supere este valor.
+      description: "Se encenderá cuando la producción supere este valor."
       default: 2000
       selector:
         number:
@@ -64,7 +64,7 @@ blueprint:
 
     pv_low_threshold:
       name: Producción FV baja (W)
-      description: Se apagará cuando la producción baje de este valor.
+      description: "Se apagará cuando la producción baje de este valor."
       default: 2000
       selector:
         number:
@@ -76,7 +76,7 @@ blueprint:
 
     target_temperature:
       name: Temperatura objetivo
-      description: Temperatura a fijar al encender la calefacción.
+      description: "Temperatura a fijar al encender la calefacción."
       default: 25
       selector:
         number:
@@ -88,7 +88,7 @@ blueprint:
 
     stabilization_minutes:
       name: Minutos de estabilidad
-      description: Tiempo durante el que deben cumplirse simultáneamente las condiciones.
+      description: "Tiempo durante el que deben cumplirse simultáneamente las condiciones."
       default: 5
       selector:
         number:
@@ -100,14 +100,14 @@ blueprint:
 
     sunrise_offset:
       name: Offset desde amanecer
-      description: Retraso o adelanto respecto al amanecer para permitir el encendido. Ejemplo: 00:30:00 o -00:15:00.
+      description: "Retraso o adelanto respecto al amanecer para permitir el encendido."
       default: "00:30:00"
       selector:
         text: {}
 
     sunset_offset:
       name: Offset desde atardecer
-      description: Adelanto o retraso respecto al atardecer para cortar el encendido y apagar. Ejemplo: -00:30:00 o 00:15:00.
+      description: "Adelanto o retraso respecto al atardecer para cortar el encendido y apagar."
       default: "-00:30:00"
       selector:
         text: {}
